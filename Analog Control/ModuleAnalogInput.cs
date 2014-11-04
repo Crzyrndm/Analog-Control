@@ -5,12 +5,22 @@ namespace AnalogControl
 {
     public class ModuleAnalogInput : PartModule
     {
-        private double[] deadzonePitch = { 0.1, 1.5 }; // 10% movement range is deadzone, 150% will deactivate control
-        private double responseExponentPitch = 1; // reactiveness of controls, used so we can have fine control in close if wanted. 1 is linear, 0-1 = faster response, 1+ = finer response
+        [KSPField(isPersistant = true)]
+        private double deadzonePitch = 0.05; // 5% movement range is deadzone
+        [KSPField(isPersistant = true)]
+        private double responseExponentPitch = 2; // reactiveness of controls, used so we can have fine control in close if wanted. 1 is linear, 0-1 = faster response, 1+ = finer response
 
-        private double[] deadzoneRoll = { 0.1, 1.5 }; // 5% movement range is deadzone, 150% will deactivate control
-        private double responseExponentRoll = 1; // reactiveness of controls, used so we can have fine control in close if wanted. 1 is linear
+        [KSPField(isPersistant = true)]
+        private double deadzoneRoll = 0.05; // 5% movement range is deadzone
+        [KSPField(isPersistant = true)]
+        private double responseExponentRoll = 2; // reactiveness of controls, used so we can have fine control in close if wanted. 1 is linear
 
+        [KSPField(isPersistant = true)]
+        private double deadzoneYaw = 0.05; // 5% movement range is deadzone
+        [KSPField(isPersistant = true)]
+        private double responseExponentYaw = 2; // reactiveness of controls, used so we can have fine control in close if wanted. 1 is linear
+
+        [KSPField(isPersistant = true)]
         private bool isRollMode = true;
         private bool isActive = false;
 
@@ -24,7 +34,7 @@ namespace AnalogControl
         public override void OnStart(StartState start)
         {
             verticalRange = Screen.height / 3; // 2/3 displacement from center == full extension
-            horizontalRange = Screen.width / 2; // full displacement from center == full extension
+            horizontalRange = Screen.width / 3; // full displacement from center == full extension
             screenCenter.y = Screen.height / 2;
             screenCenter.x = Screen.width / 2;
 
@@ -39,11 +49,11 @@ namespace AnalogControl
             if (!HighLogic.LoadedSceneIsFlight)
                 return;
 
-            if (Input.GetKeyDown(KeyCode.Keypad5))
+            if (Input.GetKeyDown(KeyCode.Tab))
             {
                 isRollMode = !isRollMode;
             }
-            if (Input.GetKeyDown(KeyCode.KeypadEnter))
+            if (Input.GetKeyDown(KeyCode.Return))
             {
                 isActive = !isActive;
             }
@@ -76,38 +86,37 @@ namespace AnalogControl
             double vertDisplacement = (mousePos.y - screenCenter.y) / verticalRange; // displacement of mouse from center as a normalised value
             double hrztDisplacement = (mousePos.x - screenCenter.x) / horizontalRange; // displacement of mouse from center as a normalised value
 
-            if (Math.Abs(vertDisplacement) < deadzonePitch[0])
-            {
-                vertDisplacement = 0;
-                state.pitch = state.pitchTrim; // If in the deadzone, output control will be the trim value
-            }
+            state.pitch = response(vertDisplacement, deadzonePitch, responseExponentPitch);
+            if (isRollMode)
+                state.roll = response(hrztDisplacement, deadzoneRoll, responseExponentRoll);
             else
-            {
-                // we're outside the deadzone. Re-normalise the value from the edge of the deadzone according to current trim
-                if (vertDisplacement > 0)
-                    vertDisplacement = (vertDisplacement - deadzonePitch[0]) * (1 - state.pitchTrim) / (1 - deadzonePitch[0]);
-                else
-                    vertDisplacement = (vertDisplacement + deadzonePitch[0]) * (1 + state.pitchTrim) / (1 - deadzonePitch[0]);
+                state.yaw = response(hrztDisplacement, deadzoneYaw, responseExponentYaw);
 
-                state.pitch = (float)Math.Pow(vertDisplacement, responseExponentPitch);
-            }
-
-            if (Math.Abs(hrztDisplacement) < deadzoneRoll[0])
-            {
-                hrztDisplacement = 0;
-                state.roll = state.rollTrim; // If in the deadzone, output control will be the trim value
-            }
-            else
-            {
-                // we're outside the deadzone. Re-normalise the value from the edge of the deadzone according to current trim
-                if (hrztDisplacement > 0) // +ve values
-                    hrztDisplacement = (hrztDisplacement - deadzoneRoll[0]) * (1 - state.rollTrim) / (1 - deadzoneRoll[0]);
-                else // -ve values
-                    hrztDisplacement = (hrztDisplacement + deadzoneRoll[0]) * (1 + state.rollTrim) / (1 - deadzoneRoll[0]);
-
-                state.roll = (float)Math.Pow(hrztDisplacement, responseExponentRoll);
-            }
             return state;
+        }
+
+        private float response(double displacement, double deadzone, double exponent)
+        {
+            float response = 0;
+            if (Math.Abs(displacement) < deadzone) // deadzone
+            {
+                return 0;
+            }
+            else if (displacement > 0) // +ve displacement
+            {
+                displacement = (displacement - deadzone) / (1 - deadzone);
+            }
+            else // -ve displacement
+            {
+                displacement = (displacement + deadzone) / (1 - deadzone);
+            }
+
+            response = (float)Math.Pow(displacement, exponent);
+            if (Math.Sign(response) != Math.Sign(displacement))
+                response *= -1;
+            response = Math.Max(Math.Min(response, 1), -1);
+
+            return response;
         }
     }
 }
