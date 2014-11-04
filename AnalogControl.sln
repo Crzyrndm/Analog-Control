@@ -3,7 +3,7 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 2013
 VisualStudioVersion = 12.0.30723.0
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AnalogControl", "AnalogControl\AnalogControl.csproj", "{B4B8FA11-276D-423A-A804-5BD4F696F45E}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AnalogControl", "Analog Control\AnalogControl.csproj", "{B4B8FA11-276D-423A-A804-5BD4F696F45E}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
