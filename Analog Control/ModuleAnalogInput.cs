@@ -3,42 +3,58 @@ using UnityEngine;
 
 namespace AnalogControl
 {
-    public class ModuleAnalogInput : PartModule
+    [KSPAddon(KSPAddon.Startup.Flight, false)]
+    public class AnalogInput : MonoBehaviour
     {
-        [KSPField(isPersistant = true)]
         private double deadzonePitch = 0.05; // 5% movement range is deadzone
-        [KSPField(isPersistant = true)]
-        private double responseExponentPitch = 2; // reactiveness of controls, used so we can have fine control in close if wanted. 1 is linear, 0-1 = faster response, 1+ = finer response
-
-        [KSPField(isPersistant = true)]
         private double deadzoneRoll = 0.05; // 5% movement range is deadzone
-        [KSPField(isPersistant = true)]
-        private double responseExponentRoll = 2; // reactiveness of controls, used so we can have fine control in close if wanted. 1 is linear
-
-        [KSPField(isPersistant = true)]
         private double deadzoneYaw = 0.05; // 5% movement range is deadzone
-        [KSPField(isPersistant = true)]
-        private double responseExponentYaw = 2; // reactiveness of controls, used so we can have fine control in close if wanted. 1 is linear
 
-        [KSPField(isPersistant = true)]
         private bool isRollMode = true;
         private bool isActive = false;
+        private bool isPitchInverted = true;
+        private bool displayCenterline = false;
+        
+        private int centerlineTransparency = 0; // 100 == transparent, 0 == opaque
 
-        private Vector2 mousePos, screenCenter;
-
-        private int verticalRange, horizontalRange;
-
+        private Vector2 mousePos, screenCenter, range;
+        
+        static KSP.IO.PluginConfiguration config;
+        
         /// <summary>
         /// Initialise control region size and other user specific params
         /// </summary>
-        public override void OnStart(StartState start)
+        public void Start()
         {
-            verticalRange = Screen.height / 3; // 2/3 displacement from center == full extension
-            horizontalRange = Screen.width / 3; // full displacement from center == full extension
+            range.y = Screen.height / 3; // 2/3 displacement from center == full extension
+            range.x = Screen.width / 3; // full displacement from center == full extension
             screenCenter.y = Screen.height / 2;
             screenCenter.x = Screen.width / 2;
-
-            Debug.Log("Analog Control module loaded");
+            
+            loadConfig();
+        }
+        
+        private void loadConfig()
+        {
+            config = KSP.IO.PluginConfiguration.CreateForType<AnalogInput>();
+            config.load();
+            
+            isPitchInverted = config.GetValue("pitchInvert", new bool());
+            displayCenterline = config.GetValue("centerlineVisible", new bool());
+            centerlineTransparency = config.GetValue("transparency", new int());
+        }
+        
+        private void saveConfig()
+        {
+            config.SetValue("pitchInvert", isPitchInverted);
+            config.SetValue("centerlineVisible", displayCenterline);
+            config.SetValue("transparency", centerlineTransparency);
+            config.Save();
+        }
+        
+        public void OnDestroy()
+        {
+            saveConfig();
         }
 
         /// <summary>
@@ -46,17 +62,12 @@ namespace AnalogControl
         /// </summary>
         public void Update()
         {
-            if (!HighLogic.LoadedSceneIsFlight)
-                return;
-
             if (Input.GetKeyDown(KeyCode.Tab))
-            {
                 isRollMode = !isRollMode;
-            }
             if (Input.GetKeyDown(KeyCode.Return))
-            {
                 isActive = !isActive;
-            }
+                
+            // drawCenterline();
         }
 
         /// <summary>
@@ -64,10 +75,7 @@ namespace AnalogControl
         /// </summary>
         public void FixedUpdate()
         {
-            if (!HighLogic.LoadedSceneIsFlight 
-                || this.vessel == null 
-                || this.vessel != FlightGlobals.ActiveVessel 
-                || !isActive)
+            if (!isActive)
                 return;
 
             base.vessel.ctrlState = mouseControlVessel(base.vessel.ctrlState);
@@ -81,40 +89,36 @@ namespace AnalogControl
         private FlightCtrlState mouseControlVessel(FlightCtrlState state)
         {
             // (0,0) is bottom left of screen for mouse pos
-            mousePos.x = Input.mousePosition.x;
-            mousePos.y = Input.mousePosition.y;
-            double vertDisplacement = (mousePos.y - screenCenter.y) / verticalRange; // displacement of mouse from center as a normalised value
-            double hrztDisplacement = (mousePos.x - screenCenter.x) / horizontalRange; // displacement of mouse from center as a normalised value
-
-            state.pitch = response(vertDisplacement, deadzonePitch, responseExponentPitch);
+            double vertDisplacement = (Input.mousePosition.y - screenCenter.y) / range.y; // displacement of mouse from center as a normalised value
+            double hrztDisplacement = (Input.mousePosition.x - screenCenter.x) / range.x; // displacement of mouse from center as a normalised value
+            
+            int invert;
+            isPitchInverted ? invert = -1 : invert = 1;
+            state.pitchTrim = invert * response(vertDisplacement, deadzonePitch);
+            
             if (isRollMode)
-                state.roll = response(hrztDisplacement, deadzoneRoll, responseExponentRoll);
+                state.rollTrim = response(hrztDisplacement, deadzoneRoll);
             else
-                state.yaw = response(hrztDisplacement, deadzoneYaw, responseExponentYaw);
+                state.yawTrim = response(hrztDisplacement, deadzoneYaw);
 
             return state;
         }
 
-        private float response(double displacement, double deadzone, double exponent)
+        private float response(double displacement, double deadzone) //, double exponent)
         {
             float response = 0;
             if (Math.Abs(displacement) < deadzone) // deadzone
-            {
                 return 0;
-            }
             else if (displacement > 0) // +ve displacement
-            {
                 displacement = (displacement - deadzone) / (1 - deadzone);
-            }
             else // -ve displacement
-            {
                 displacement = (displacement + deadzone) / (1 - deadzone);
-            }
 
-            response = (float)Math.Pow(displacement, exponent);
-            if (Math.Sign(response) != Math.Sign(displacement))
+            // response = (float)Math.Pow(displacement, exponent); // do we want configurable exponent?
+            response = displacement * displacement;
+            if (displacement < 0) // -ve displacement becomes positive response if not checked
                 response *= -1;
-            response = Math.Max(Math.Min(response, 1), -1);
+            response = Mathf.Clamp(response, 1, -1);
 
             return response;
         }
