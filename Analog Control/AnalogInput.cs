@@ -78,7 +78,7 @@ namespace AnalogControl
             if (!isActive)
                 return;
 
-            base.vessel.ctrlState = mouseControlVessel(base.vessel.ctrlState);
+            FlightGlobals.ActiveVessel.ctrlState = mouseControlVessel(FlightGlobals.ActiveVessel.ctrlState);
         }
 
         /// <summary>
