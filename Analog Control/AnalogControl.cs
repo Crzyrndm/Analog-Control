@@ -14,7 +14,6 @@ namespace AnalogControl
         bool isActive = false;
         bool isPitchInverted = true;
         bool displayCenterline = true;
-        bool isFirstRun = true;
         
         float centerlineTransparency = 1; // 0 == transparent, 1 == opaque
 
@@ -62,24 +61,16 @@ namespace AnalogControl
             config = KSP.IO.PluginConfiguration.CreateForType<AnalogControl>();
             config.load();
 
-            if (!config.GetValue("hasRun", new bool()))
-            {
-                isPitchInverted = config.GetValue("pitchInvert", new bool());
-                displayCenterline = config.GetValue("centerlineVisible", new bool());
-                centerlineTransparency = config.GetValue("transparency", new float());
-            }
-
-            print(isPitchInverted);
-            print(displayCenterline);
-            print(centerlineTransparency);
+            isPitchInverted = config.GetValue("pitchInvert", true);
+            displayCenterline = config.GetValue("centerlineVisible", true);
+            centerlineTransparency = float.Parse(config.GetValue("transparency", "1"));
         }
         
         private void saveConfig()
         {
-            config.SetValue("hasRun", true);
-            config.SetValue("pitchInvert", isPitchInverted);
-            config.SetValue("centerlineVisible", displayCenterline);
-            config.SetValue("transparency", centerlineTransparency);
+            config["pitchInvert"] = isPitchInverted;
+            config["centerlineVisible"] = displayCenterline;
+            config["transparency"] = centerlineTransparency.ToString();
             config.save();
         }
         
