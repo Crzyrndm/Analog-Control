@@ -33,12 +33,13 @@ namespace AnalogControl
 
             try
             {
-                target = new Texture2D(500, 500);
-                target.LoadImage(System.IO.File.ReadAllBytes(KSPUtil.ApplicationRootPath + "GameData/Analog Control/PluginData/AnalogControl/crosshair.png"));
-                setTransparency(target, centerlineTransparency);
-                targetRect = new Rect(screenCenter.x - deadzoneRoll * range.x * 2.5f, screenCenter.y - deadzonePitch * range.y * 2.5f, range.x * 2 * deadzoneRoll * 2.5f, range.y * 2 * deadzonePitch * 2.5f);
                 if (displayCenterline)
                 {
+                    target = new Texture2D(500, 500);
+                    target.LoadImage(System.IO.File.ReadAllBytes(KSPUtil.ApplicationRootPath + "GameData/Analog Control/PluginData/AnalogControl/crosshair.png"));
+                    setTransparency(target, centerlineTransparency);
+                    targetRect = new Rect(screenCenter.x - deadzoneRoll * range.x * 2.5f, screenCenter.y - deadzonePitch * range.y * 2.5f, range.x * 2 * deadzoneRoll * 2.5f, range.y * 2 * deadzonePitch * 2.5f);
+
                     RenderingManager.AddToPostDrawQueue(5, Draw);
                     Debug.Log("[Analog Control] renderer call added");
                 }
@@ -62,6 +63,8 @@ namespace AnalogControl
             range.y = Screen.height * float.Parse(config.GetValue("rangeY", "0.67")) / 2;
             deadzonePitch = float.Parse(config.GetValue("deadzoneY", "0.05"));
             deadzoneRoll = float.Parse(config.GetValue("deadzoneX", "0.05"));
+            screenCenter.x = float.Parse(config.GetValue("centerX", (Screen.width / 2).ToString()));
+            screenCenter.y = float.Parse(config.GetValue("centerY", (Screen.height / 2).ToString()));
         }
         
         private void saveConfig()
@@ -73,6 +76,8 @@ namespace AnalogControl
             config["rangeY"] = (2 * range.y / Screen.height).ToString();
             config["deadzoneX"] = deadzoneRoll.ToString();
             config["deadzoneY"] = deadzonePitch.ToString();
+            config["centerX"] = screenCenter.x.ToString();
+            config["centerY"] = screenCenter.y.ToString();
             config.save();
         }
         
@@ -99,7 +104,7 @@ namespace AnalogControl
             if (!isActive)
                 return;
 
-            Graphics.DrawTexture(new Rect(screenCenter.x - deadzoneRoll * range.x * 2.5f, screenCenter.y - deadzonePitch * range.y * 2.5f, range.x * 2 * deadzoneRoll * 2.5f, range.y * 2 * deadzonePitch * 2.5f), target);
+            Graphics.DrawTexture(targetRect, target);
         }
 
         /// <summary>
@@ -125,30 +130,34 @@ namespace AnalogControl
             float hrztDisplacement = (Input.mousePosition.x - screenCenter.x) / range.x; // displacement of mouse from center as a normalised value
             
             int invert = isPitchInverted ? -1 : 1;
-            state.pitch = invert * response(vertDisplacement, deadzonePitch);
+            state.pitch = invert * response(vertDisplacement, deadzonePitch, state.pitchTrim);
             if (isRollMode)
-                state.roll = response(hrztDisplacement, deadzoneRoll);
+                state.roll = response(hrztDisplacement, deadzoneRoll, state.rollTrim);
             else
-                state.yaw = response(hrztDisplacement, deadzoneRoll);
+                state.yaw = response(hrztDisplacement, deadzoneRoll, state.yawTrim);
 
             return state;
         }
 
-        private float response(float displacement, float deadzone) //, double exponent)
+        private float response(float displacement, float deadzone, float trim)
         {
-            float response = 0;
             if (Math.Abs(displacement) < deadzone) // deadzone
-                return 0;
-            else if (displacement > 0) // +ve displacement
+                return trim;
+            
+            if (displacement > 0) // +ve displacement
                 displacement = (displacement - deadzone) / (1 - deadzone);
             else // -ve displacement
                 displacement = (displacement + deadzone) / (1 - deadzone);
 
-            // response = (float)Math.Pow(displacement, exponent); // do we want configurable exponent?
-            response = displacement * displacement;
-
+            float response = displacement * displacement; // displacement^2 gives nice fine control
             if (displacement < 0) // -ve displacement becomes positive response if not checked
                 response *= -1;
+            // trim compensation
+            if (response > 0)
+                response = trim + response * (1 - trim);
+            else
+                response = trim + response * (1 + trim);
+            
             response = Mathf.Clamp(response, -1, 1);
 
             return response;
