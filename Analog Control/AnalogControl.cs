@@ -64,6 +64,10 @@ namespace AnalogControl
             isPitchInverted = config.GetValue("pitchInvert", true);
             displayCenterline = config.GetValue("centerlineVisible", true);
             centerlineTransparency = float.Parse(config.GetValue("transparency", "1"));
+            range.x = Screen.width * float.Parse(config.GetValue("rangeX", "0.67")) / 2;
+            range.y = Screen.height * float.Parse(config.GetValue("rangeY", "0.67")) / 2;
+            deadzonePitch = float.Parse(config.GetValue("deadzoneY", "0.05"));
+            deadzoneRoll = deadzoneYaw = float.Parse(config.GetValue("deadzoneX", "0.05"));
         }
         
         private void saveConfig()
@@ -71,6 +75,10 @@ namespace AnalogControl
             config["pitchInvert"] = isPitchInverted;
             config["centerlineVisible"] = displayCenterline;
             config["transparency"] = centerlineTransparency.ToString();
+            config["rangeX"] = (2 * range.x / Screen.width).ToString();
+            config["rangeY"] = (2 * range.y / Screen.height).ToString();
+            config["deadzoneX"] = deadzoneRoll.ToString();
+            config["deadzoneY"] = deadzonePitch.ToString();
             config.save();
         }
         
