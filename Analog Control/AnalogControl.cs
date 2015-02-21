@@ -8,7 +8,6 @@ namespace AnalogControl
     {
         float deadzonePitch = 0.05f; // 5% movement range is deadzone
         float deadzoneRoll = 0.05f; // 5% movement range is deadzone
-        float deadzoneYaw = 0.05f; // 5% movement range is deadzone
 
         bool isRollMode = true;
         bool isActive = false;
@@ -30,11 +29,6 @@ namespace AnalogControl
         /// </summary>
         public void Start()
         {
-            range.y = Screen.height / 3; // 2/3 displacement from center == full extension
-            range.x = Screen.width / 3; // full displacement from center == full extension
-            screenCenter.y = Screen.height / 2;
-            screenCenter.x = Screen.width / 2;
-            
             loadConfig();
 
             try
@@ -67,7 +61,7 @@ namespace AnalogControl
             range.x = Screen.width * float.Parse(config.GetValue("rangeX", "0.67")) / 2;
             range.y = Screen.height * float.Parse(config.GetValue("rangeY", "0.67")) / 2;
             deadzonePitch = float.Parse(config.GetValue("deadzoneY", "0.05"));
-            deadzoneRoll = deadzoneYaw = float.Parse(config.GetValue("deadzoneX", "0.05"));
+            deadzoneRoll = float.Parse(config.GetValue("deadzoneX", "0.05"));
         }
         
         private void saveConfig()
@@ -135,7 +129,7 @@ namespace AnalogControl
             if (isRollMode)
                 state.roll = response(hrztDisplacement, deadzoneRoll);
             else
-                state.yaw = response(hrztDisplacement, deadzoneYaw);
+                state.yaw = response(hrztDisplacement, deadzoneRoll);
 
             return state;
         }
