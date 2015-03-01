@@ -6,20 +6,19 @@ namespace AnalogControl
     [KSPAddon(KSPAddon.Startup.Flight, false)]
     public class AnalogControl : MonoBehaviour
     {
-        float deadzonePitch = 0.05f; // 5% movement range is deadzone
-        float deadzoneRoll = 0.05f; // 5% movement range is deadzone
-
+        // state
         bool isRollMode = true;
         bool isActive = false;
+        bool isPaused = true;
+        // settings
         bool isPitchInverted = true;
         bool displayCenterline = true;
-        
         float centerlineTransparency = 1; // 0 == transparent, 1 == opaque
-
         Vector2 screenCenter, range;
-        
+        float deadzonePitch = 0.05f; // 5% movement range is deadzone
+        float deadzoneRoll = 0.05f; // 5% movement range is deadzone
+        // config
         KSP.IO.PluginConfiguration config;
-
         // display
         Texture2D target;
         Rect targetRect;
@@ -95,6 +94,10 @@ namespace AnalogControl
                 isRollMode = !isRollMode;
             if (Input.GetKeyDown(KeyCode.Return))
                 isActive = !isActive;
+            if (isActive && Input.GetMouseButtonDown(0))
+                isPaused = !isPaused;
+            else if (!isActive)
+                isPaused = true;
                 
             // drawCenterline();
         }
@@ -112,7 +115,7 @@ namespace AnalogControl
         /// </summary>
         public void FixedUpdate()
         {
-            if (!isActive)
+            if ((isPaused && displayCenterline) || (!isActive && !displayCenterline))
                 return;
             
             FlightGlobals.ActiveVessel.ctrlState = mouseControlVessel(FlightGlobals.ActiveVessel.ctrlState);
