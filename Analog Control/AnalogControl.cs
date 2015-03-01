@@ -10,6 +10,9 @@ namespace AnalogControl
         bool isRollMode = true;
         bool isActive = false;
         bool isPaused = true;
+
+        Vector2 lastInput = new Vector2();
+        bool holdInput = false;
         // settings
         bool isPitchInverted = true;
         bool displayCenterline = true;
@@ -22,6 +25,9 @@ namespace AnalogControl
         // display
         Texture2D target;
         Rect targetRect;
+
+        Texture2D markerSpot;
+        Rect markerRect;
         
         /// <summary>
         /// Initialise control region size and other user specific params
@@ -38,6 +44,11 @@ namespace AnalogControl
                     target.LoadImage(System.IO.File.ReadAllBytes(KSPUtil.ApplicationRootPath + "GameData/Analog Control/PluginData/AnalogControl/crosshair.png"));
                     setTransparency(target, centerlineTransparency);
                     targetRect = new Rect(screenCenter.x - deadzoneRoll * range.x * 2.5f, screenCenter.y - deadzonePitch * range.y * 2.5f, range.x * 2 * deadzoneRoll * 2.5f, range.y * 2 * deadzonePitch * 2.5f);
+
+                    markerSpot = new Texture2D(20, 20);
+                    markerSpot.LoadImage(System.IO.File.ReadAllBytes(KSPUtil.ApplicationRootPath + "GameData/Analog Control/PluginData/AnalogControl/spot.png"));
+                    // markerSpot.Apply();
+                    markerRect = new Rect(0, 0, 20, 20);
 
                     RenderingManager.AddToPostDrawQueue(5, Draw);
                     Debug.Log("[Analog Control] renderer call added");
@@ -97,9 +108,23 @@ namespace AnalogControl
             if (isActive && Input.GetMouseButtonDown(0))
                 isPaused = !isPaused;
             else if (!isActive)
+            {
                 isPaused = true;
-                
-            // drawCenterline();
+                holdInput = false;
+                lastInput = Vector2.zero;
+            }
+            else
+            {
+                if (!isPaused)
+                    holdInput = true;
+            }
+            if (!displayCenterline)
+                isPaused = !isActive;
+            else
+            {
+                markerRect.x = lastInput.x + screenCenter.x - 10;
+                markerRect.y = screenCenter.y - lastInput.y - 10;
+            }
         }
 
         public void Draw()
@@ -108,6 +133,9 @@ namespace AnalogControl
                 return;
 
             Graphics.DrawTexture(targetRect, target);
+
+            if (holdInput && isPaused)
+                Graphics.DrawTexture(markerRect, markerSpot);
         }
 
         /// <summary>
@@ -115,7 +143,7 @@ namespace AnalogControl
         /// </summary>
         public void FixedUpdate()
         {
-            if ((isPaused && displayCenterline) || (!isActive && !displayCenterline))
+            if (!isActive || (isPaused && !holdInput))
                 return;
             
             FlightGlobals.ActiveVessel.ctrlState = mouseControlVessel(FlightGlobals.ActiveVessel.ctrlState);
@@ -129,8 +157,14 @@ namespace AnalogControl
         private FlightCtrlState mouseControlVessel(FlightCtrlState state)
         {
             // (0,0) is bottom left of screen for mouse pos
-            float vertDisplacement = (Input.mousePosition.y - screenCenter.y) / range.y; // displacement of mouse from center as a normalised value
-            float hrztDisplacement = (Input.mousePosition.x - screenCenter.x) / range.x; // displacement of mouse from center as a normalised value
+            if (!isPaused)
+            {
+                lastInput.x = Input.mousePosition.x - screenCenter.x;
+                lastInput.y = Input.mousePosition.y - screenCenter.y;
+            }
+
+            float vertDisplacement = lastInput.y / range.y; // displacement of mouse from center as a normalised value
+            float hrztDisplacement = lastInput.x / range.x; // displacement of mouse from center as a normalised value
             
             int invert = isPitchInverted ? -1 : 1;
             state.pitch = invert * response(vertDisplacement, deadzonePitch, state.pitchTrim);
