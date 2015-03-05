@@ -23,10 +23,10 @@ namespace AnalogControl
         // config
         KSP.IO.PluginConfiguration config;
         // display
-        Texture2D target;
+        static Texture2D target;
         Rect targetRect;
 
-        Texture2D markerSpot;
+        static Texture2D markerSpot;
         Rect markerRect;
         
         /// <summary>
@@ -40,12 +40,14 @@ namespace AnalogControl
             {
                 if (displayCenterline)
                 {
-                    target = new Texture2D(500, 500);
+                    if (target == null)
+                        target = new Texture2D(500, 500);
                     target.LoadImage(System.IO.File.ReadAllBytes(KSPUtil.ApplicationRootPath + "GameData/Analog Control/PluginData/AnalogControl/crosshair.png"));
                     setTransparency(target, centerlineTransparency);
                     targetRect = new Rect(screenCenter.x - deadzoneRoll * range.x * 2.5f, screenCenter.y - deadzonePitch * range.y * 2.5f, range.x * 2 * deadzoneRoll * 2.5f, range.y * 2 * deadzonePitch * 2.5f);
 
-                    markerSpot = new Texture2D(20, 20);
+                    if (markerSpot == null)
+                        markerSpot = new Texture2D(20, 20);
                     markerSpot.LoadImage(System.IO.File.ReadAllBytes(KSPUtil.ApplicationRootPath + "GameData/Analog Control/PluginData/AnalogControl/spot.png"));
                     // markerSpot.Apply();
                     markerRect = new Rect(0, 0, 20, 20);
