@@ -169,7 +169,7 @@ namespace AnalogControl
             float hrztDisplacement = lastInput.x / range.x; // displacement of mouse from center as a normalised value
             
             int invert = isPitchInverted ? -1 : 1;
-            state.pitch = invert * response(vertDisplacement, deadzonePitch, state.pitchTrim);
+            state.pitch = invert * response(vertDisplacement, deadzonePitch, -state.pitchTrim);
             if (isRollMode)
                 state.roll = response(hrztDisplacement, deadzoneRoll, state.rollTrim);
             else
