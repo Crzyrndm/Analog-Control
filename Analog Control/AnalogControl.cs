@@ -31,7 +31,7 @@ namespace AnalogControl
         Rect markerRect;
 
         bool showWindow = false;
-        customKeybind activate, modeSwitch, windowKey, lockKey;
+        customKeybind activate, modeSwitch, windowKey, lockKey, pauseKey;
 
         bool lockInput = false;
 
@@ -59,7 +59,10 @@ namespace AnalogControl
                     target = new Texture2D(500, 500);
                 target.LoadImage(System.IO.File.ReadAllBytes(KSPUtil.ApplicationRootPath + "GameData/Analog Control/PluginData/AnalogControl/crosshair.png"));
                 setTransparency(target, transparency);
-                targetRect = new Rect(controlZone.center.x - deadzone.x * controlZone.width * 1.25f, controlZone.center.y - deadzone.y * controlZone.height * 1.25f, controlZone.width * deadzone.x * 2.5f, controlZone.height * deadzone.y * 2.5f);
+                targetRect = new Rect();
+                targetRect.width = controlZone.width * deadzone.x * 1.5f;
+                targetRect.height = controlZone.height * deadzone.y * 1.5f;
+                targetRect.center = controlZone.center;
             }
             catch
             {
@@ -91,7 +94,8 @@ namespace AnalogControl
             activate = new customKeybind(config.GetValue<KeyCode>("activate", KeyCode.Return));
             modeSwitch = new customKeybind(config.GetValue<KeyCode>("modeSwitch", KeyCode.Tab));
             windowKey = new customKeybind(config.GetValue<KeyCode>("windowKey", KeyCode.O));
-            lockKey = new customKeybind(config.GetValue<KeyCode>("LockKey", KeyCode.L));
+            lockKey = new customKeybind(config.GetValue<KeyCode>("lockKey", KeyCode.L));
+            pauseKey = new customKeybind(config.GetValue<KeyCode>("pauseKey", KeyCode.Mouse0));
         }
         
         private void saveConfig()
@@ -104,6 +108,7 @@ namespace AnalogControl
             config["modeSwitch"] = modeSwitch.currentBind;
             config["windowKey"] = windowKey.currentBind;
             config["lockKey"] = lockKey.currentBind;
+            config["pauseKey"] = pauseKey.currentBind;
             config.save();
         }
         
@@ -120,7 +125,7 @@ namespace AnalogControl
         public void Update()
         {
             dragWindow();
-            if (Input.GetKeyDown(lockKey.currentBind))
+            if (Input.GetKeyDown(lockKey.currentBind) && GameSettings.MODIFIER_KEY.GetKey())
                 lockInput = !lockInput;
             if (lockInput)
                 return;
@@ -132,7 +137,7 @@ namespace AnalogControl
             if (Input.GetKeyDown(modeSwitch.currentBind))
                 isRollMode = !isRollMode;
 
-            if (Input.GetMouseButtonDown(0))
+            if (Input.GetKeyDown(pauseKey.currentBind))
             {
                 controlState = controlState == activationState.Paused ? activationState.Active : activationState.Paused;
                 firstStart = false;
@@ -158,8 +163,8 @@ namespace AnalogControl
                     }
                 }
                 targetRect.center = controlZone.center;
-                targetRect.width = controlZone.width * deadzone.x * 1.25f;
-                targetRect.height = controlZone.height * deadzone.y * 1.25f;
+                targetRect.width = controlZone.width * deadzone.x * 1.5f;
+                targetRect.height = controlZone.height * deadzone.y * 1.5f;
             }
         }
 
@@ -231,6 +236,18 @@ namespace AnalogControl
                         lockKey.set = true;
                     }
                 }
+                if (GUILayout.Button("Pause Key => " + (pauseKey.set ? pauseKey.currentBind.ToString() : "Not Assigned")))
+                    pauseKey.set = !pauseKey.set;
+                if (!pauseKey.set)
+                {
+                    if (Event.current.keyCode == KeyCode.Escape)
+                        pauseKey.set = true;
+                    else if (Event.current.type == EventType.KeyDown)
+                    {
+                        pauseKey.currentBind = Event.current.keyCode;
+                        pauseKey.set = true;
+                    }
+                }
                 isPitchInverted = GUILayout.Toggle(isPitchInverted, "Invert Pitch Control");
                 GUILayout.BeginHorizontal();
                 GUILayout.Label("Deadzone width percentage");
@@ -278,15 +295,12 @@ namespace AnalogControl
         {
             // (0,0) is bottom left of screen for mouse pos, top left for UI
             if (controlState == activationState.Active)
-            {
-                markerRect.x = Input.mousePosition.x - 10;
-                markerRect.y = Screen.height - Input.mousePosition.y - 10;
-            }
+                markerRect.center = new Vector2(Input.mousePosition.x, Screen.height - Input.mousePosition.y);
 
-            float vertDisplacement = 2 * (Screen.height - Input.mousePosition.y - controlZone.center.y) / controlZone.height;
-            float hrztDisplacement = 2 * (Input.mousePosition.x - controlZone.center.x) / controlZone.width;
-            
-            state.pitch = (isPitchInverted ? -1 : 1) * response(vertDisplacement, deadzone.y, -state.pitchTrim);
+            float vertDisplacement = 2 * (markerRect.center.y - controlZone.center.y) / controlZone.height;
+            state.pitch = (isPitchInverted ? -1 : 1) * response(vertDisplacement, deadzone.y, state.pitchTrim);
+
+            float hrztDisplacement = 2 * (markerRect.center.x - controlZone.center.x) / controlZone.width;
             if (isRollMode)
                 state.roll = response(hrztDisplacement, deadzone.x, state.rollTrim);
             else
