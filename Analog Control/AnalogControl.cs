@@ -73,6 +73,7 @@ namespace AnalogControl
                 if (markerSpot == null)
                     markerSpot = new Texture2D(20, 20);
                 markerSpot.LoadImage(System.IO.File.ReadAllBytes(KSPUtil.ApplicationRootPath + "GameData/Analog Control/PluginData/AnalogControl/spot.png"));
+                setTransparency(markerSpot, transparency);
                 markerRect = new Rect(0, 0, 20, 20);
             }
             catch
