@@ -84,7 +84,6 @@ namespace AnalogControl
             {
                 Debug.Log("Marker overlay setup failed");
             }
-            RenderingManager.AddToPostDrawQueue(5, Draw);
         }
         
         private void loadConfig()
@@ -173,7 +172,7 @@ namespace AnalogControl
             }
         }
 
-        public void Draw()
+        public void OnGUI()
         {
             if (showWindow)
                 controlZone = GUILayout.Window(GetInstanceID(), controlZone, locationWindow, "", GUI.skin.box);
